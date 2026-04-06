@@ -11,7 +11,7 @@
 | Product Owner | Yewen Zhou |
 | Developer | Youqian Cui |
 
-**Agreed Development Fee:** _[TODO]_ GIX Bucks
+**Agreed Development Fee:** 25 GIX Bucks
 
 ---
 
