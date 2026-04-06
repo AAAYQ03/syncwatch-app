@@ -1,112 +1,56 @@
-# TECHIN 510 Final Project
----
+# SyncWatch 🎬
 
-## Overview
+Watch YouTube & Bilibili videos in perfect sync with your friends — no more awkward "3, 2, 1, play!"
 
-The final project simulates a professional client-developer relationship. You will:
+## What It Does
 
-1. **Propose your own project** — define the problem, write the spec, create a revenue model, review all code, and accept (or reject) deliverables. You never write code on your own project.
-2. **Develop someone else's project** — architect the system, implement it using agentic engineering (AI-first development), write tests, and deliver a working product.
+SyncWatch lets you create a watch room, paste a video link, and enjoy synchronized playback with anyone who joins. Play, pause, and seek are mirrored in real time across all participants. Your watch history is saved so you can pick up right where you left off.
 
-All collaborations happen through GitHub — Issues, Pull Requests, and code review. 
----
+## Core Features
 
-## Why This Model?
+- **Room creation & sharing** — Generate a room and invite friends via link or code.
+- **Avatar grab lobby** — Preset character avatars, first-come-first-served claiming (like Ultimate Chicken Horse). No registration needed; latecomers get a "?" avatar.
+- **Ready check & countdown** — Everyone hits "Ready", then a 3-2-1 countdown auto-starts playback.
+- **Auto-fetch video title** — Paste a YouTube or Bilibili URL; the title appears automatically.
+- **Real-time sync** — All playback controls are mirrored to every participant within milliseconds.
+- **Buffering detection** — If anyone is loading, playback pauses for all with a "Waiting for [avatar]..." notice.
+- **Floating emoji reactions** — Send reactions that float up over the video, visible to everyone.
+- **Watch history & resume** — Browse past sessions and continue from your last position.
 
-**For Proposers (Client role):** A key part of software development is defining what to build, evaluating whether it was built correctly, and giving feedback that improves the product. These are the skills of a product manager, a startup founder, or anyone who hires engineers.
+## Team
 
-**For Developers (Engineer role):** Real engineering means building to someone else's spec, not your own vision. You must interpret requirements, negotiate scope, communicate progress, and respond to feedback — all while using AI tools effectively.
+| Role | Name |
+|------|------|
+| Product Owner | Yewen Zhou |
+| Developer | Youqian Cui |
 
----
+## Timeline
 
-## The Two Roles
+| Check-in | Date | Expected Progress |
+|----------|------|-------------------|
+| **Check-in 1** | Apr 5, 2026 | Project scaffolding complete; room create/join working; lobby page with real-time avatar grab and ready-check countdown functional. (Issues #1–#3) |
+| **Check-in 2** | Apr 30, 2026 | Video URL auto-fetch working; embedded player with synchronized playback (play/pause/seek) across multiple clients. (Issues #4–#5) |
+| **Check-in 3** | May 15, 2026 | Buffering auto-pause, floating emoji reactions, watch history & resume all implemented. (Issues #6–#7) |
+| **Final Delivery** | May 25, 2026 | UI polish (avatar animations, countdown transitions), responsive design, deployed to public URL. Demo-ready. (Issue #8) |
 
-### Role 1: Proposer (Client / Product Owner)
+## Tech Stack (tentative)
 
-You are the client. You define what gets built and evaluate whether it meets your standards.
+React / Next.js · Supabase (Postgres + Realtime) · Vercel · YouTube IFrame API
 
-**Your responsibilities:**
-- Write a Project Pitch with a revenue model
-- Create a detailed `SPEC.md` with user stories and acceptance criteria
-- Decompose the spec into GitHub Issues with testable acceptance criteria
-- Set up branch protection on your project repo (main requires 1 review)
-- Review every Pull Request your developer submits
-- File bug reports with reproduction steps and screenshots
-- Conduct acceptance testing at each gate
-- Present the problem, revenue model, and development story at Demo Day
+> Stack is negotiable — see `SPEC.md` for details.
 
-**You never write implementation code on your own project.**
+## Getting Started
 
-### Role 2: Developer (AI-First Freelance Engineer)
+```bash
+# clone & install
+git clone <repo-url>
+cd syncwatch
+npm install
 
-You are the engineer. You build someone else's vision using agentic engineering.
+# run locally
+npm run dev
+```
 
-**Your responsibilities:**
-- Browse project pitches and express interest
-- Write an `ARCHITECTURE.md` with C4 diagram, data model, tech stack justification, and agentic engineering plan
-- Set up `CLAUDE.md` and `.cursorrules` for effective AI-assisted development
-- Implement features via Pull Requests, each referencing a GitHub Issue
-- Use agentic engineering (Cursor, Claude Code) for all development
-- Write automated tests and conduct security review
-- Respond to all PR review comments and bug reports
-- Present architecture and agentic engineering approach at Demo Day
+## License
 
-**Your skill is not writing code by hand — it is orchestrating AI to produce quality code, then verifying the output.**
-
----
-
-## GIX Bucks Economy
-
-Every project operates in a simulated economy that teaches budget management, scope-cost tradeoffs, and market validation.
-
-**See [`gix-bucks.md`](./gix-bucks.md) for full rules and worked examples.**
-
-Quick summary:
-- Every student starts with **100 GIX Bucks**
-- Proposers pay developers a **negotiated development fee**
-- At Demo Day, all students distribute their remaining bucks and those earned as developers as **investments** in projects they believe are viable
-- **Net Profit = Investment Received - Development Fee Paid**
-- Positive net profit is normalized to **bonus points**
-
----
-
-## Marketplace Matching
-
-If you are not hired by any client, or you cannot find a developer, let your instructor and TA know.
-
----
-
-## Tech Stack
-
-The tech stack is **negotiated between proposer and developer**. Some examples are given below:
-
-| Option | When to use |
-|--------|------------|
-| **Next.js + Supabase** | Multi-user apps, apps needing auth, database-heavy projects |
-| **Python + Streamlit** | Data-focused apps, single-user tools, rapid prototyping |
-| **Custom (pre-approved)** | Other stacks require written instructor approval by end of Week 3 |
-
-The proposer states their stack preference in the pitch. The developer may counter-propose with justification. The final choice is recorded in the `ARCHITECTURE.md`.
-
----
-
-## Conflict Resolution
-
-### Contract Terms
-
-The `SPEC.md` + agreed GIX Bucks fee constitute the project contract. Both parties should commit to:
-
-- **Proposer:** Review PRs within 48 hours. Provide specific, actionable feedback. Respond to developer questions within 48 hours.
-- **Developer:** Submit at least one PR per 2-week period. Respond to review comments within 48 hours. Keep the proposer informed of blockers.
-
-### Escalation Process
-
-1. If either party is unresponsive or breaches the contract, the other creates a GitHub Issue tagged `escalation` in the project repo.
-2. Instructor reviews the GitHub audit trail (PR timestamps, Issue activity, review comments) within 1 week.
-3. Instructor mediates and documents the outcome.
-
-### Grade Impact
-
-- **Communication & Professionalism** are graded. Ghosting, persistent non-responsiveness may result in point deduction. 
-
----
+MIT
