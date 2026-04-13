@@ -120,17 +120,27 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
   const claimAvatar = useCallback(
     async (avatarId: string) => {
       if (!sessionId) return { ok: false, error: "No session" };
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("room_members")
         .update({ avatar_id: avatarId })
         .eq("room_id", roomId)
-        .eq("session_id", sessionId);
+        .eq("session_id", sessionId)
+        .select()
+        .single();
       if (error) {
         // 23505 = partial unique index violation (someone else has it).
         if (error.code === "23505") {
           return { ok: false, error: "Avatar just taken" };
         }
         return { ok: false, error: error.message };
+      }
+      // Optimistic local update so we don't wait for realtime round-trip.
+      if (data) {
+        const updated = data as RoomMember;
+        setState((prev) => ({
+          ...prev,
+          members: prev.members.map((m) => (m.id === updated.id ? updated : m))
+        }));
       }
       return { ok: true };
     },
@@ -139,12 +149,21 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
 
   const toggleReady = useCallback(async () => {
     if (!sessionId || !myMember) return { ok: false, error: "Not in room" };
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("room_members")
       .update({ is_ready: !myMember.is_ready })
       .eq("room_id", roomId)
-      .eq("session_id", sessionId);
+      .eq("session_id", sessionId)
+      .select()
+      .single();
     if (error) return { ok: false, error: error.message };
+    if (data) {
+      const updated = data as RoomMember;
+      setState((prev) => ({
+        ...prev,
+        members: prev.members.map((m) => (m.id === updated.id ? updated : m))
+      }));
+    }
     return { ok: true };
   }, [roomId, sessionId, myMember, supabase]);
 
