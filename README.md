@@ -26,12 +26,33 @@ SyncWatch lets you create a watch room, paste a video link, and enjoy synchroniz
 
 ## Timeline
 
-| Check-in | Date | Expected Progress |
-|----------|------|-------------------|
-| **Check-in 1** | Apr 5, 2026 | Project scaffolding complete; room create/join working; lobby page with real-time avatar grab and ready-check countdown functional. (Issues #1–#3) |
-| **Check-in 2** | Apr 30, 2026 | Video URL auto-fetch working; embedded player with synchronized playback (play/pause/seek) across multiple clients. (Issues #4–#5) |
-| **Check-in 3** | May 15, 2026 | Buffering auto-pause, floating emoji reactions, watch history & resume all implemented. (Issues #6–#7) |
-| **Final Delivery** | May 25, 2026 | UI polish (avatar animations, countdown transitions), responsive design, deployed to public URL. Demo-ready. (Issue #8) |
+| Check-in | Date | Expected Progress | Status |
+|----------|------|-------------------|--------|
+| **Check-in 1** | Apr 5, 2026 | Project scaffolding complete; room create/join working; lobby page with real-time avatar grab and ready-check countdown functional. (Issues #1–#3) | ✅ Completed — PRs #12, #13, #14 merged |
+| **Check-in 2** | Apr 30, 2026 | Video URL auto-fetch working; embedded player with synchronized playback (play/pause/seek) across multiple clients. (Issues #4–#5) | ✅ Completed — PRs #15, #16 reviewed & approved |
+| **Check-in 3** | May 15, 2026 | Buffering auto-pause, floating emoji reactions, watch history & resume all implemented. (Issues #6–#7) | 🔲 Upcoming |
+| **Final Delivery** | May 25, 2026 | UI polish (avatar animations, countdown transitions), responsive design, deployed to public URL. Demo-ready. (Issue #8) | 🔲 Upcoming |
+
+## Mid-Point Check (May 5, 2026)
+
+**Developer status: ✅ On track**
+
+Issues #1–#5 are complete and merged/approved, covering project scaffolding, room creation, lobby with avatar grab & ready check, video URL auto-fetch, and synchronized playback. This represents 5 of 8 issues delivered by the midpoint, ahead of the original timeline.
+
+**Tested and verified:**
+- Room creation and join via code/link — working
+- Avatar grab lobby with real-time claiming — working
+- Ready check with 3-2-1 countdown — working
+- YouTube & Bilibili URL paste with auto-fetched title — working
+- Synchronized play/pause/seek across two browser windows — working (~300ms latency)
+
+**Known limitations filed:** See Issue #XX (replace with your tracker issue number) for mobile playback, fullscreen sync, and other considerations.
+
+**Remaining work (Issues #6–#8):**
+- Buffering detection & auto-pause
+- Floating emoji reactions
+- Watch history & resume
+- UI polish & deployment
 
 ## Tech Stack (tentative)
 
@@ -41,14 +62,20 @@ React / Next.js · Supabase (Postgres + Realtime) · Vercel · YouTube IFrame AP
 
 ## Getting Started
 
+## Getting Started
+
 ```bash
 # clone & install
-git clone <repo-url>
-cd syncwatch
-npm install
+git clone https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux.git
+cd final-project-codebase-yzhou30-ux
+pnpm install
+
+# set up environment
+cp .env.local.example .env.local
+# fill in your Supabase URL and anon key
 
 # run locally
-npm run dev
+pnpm dev
 ```
 
 ## License
