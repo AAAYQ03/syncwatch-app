@@ -16,8 +16,16 @@ type SetVideoArgs = {
   video_title: string;
 };
 
+type PlaybackStatePatch = {
+  playing: boolean;
+  current_time: number;
+};
+
 type UseWatchRoomReturn = State & {
   setVideo: (args: SetVideoArgs) => Promise<{ ok: boolean; error?: string }>;
+  setPlaybackState: (
+    patch: PlaybackStatePatch
+  ) => Promise<{ ok: boolean; error?: string }>;
 };
 
 export function useWatchRoom(roomId: string): UseWatchRoomReturn {
@@ -92,5 +100,28 @@ export function useWatchRoom(roomId: string): UseWatchRoomReturn {
     [roomId, supabase]
   );
 
-  return { ...state, setVideo };
+  const setPlaybackState = useCallback(
+    async ({ playing, current_time }: PlaybackStatePatch) => {
+      const { data, error } = await supabase
+        .from("rooms")
+        .update({
+          playback_state: {
+            playing,
+            current_time,
+            updated_at: new Date().toISOString()
+          }
+        })
+        .eq("id", roomId)
+        .select()
+        .single();
+      if (error) return { ok: false, error: error.message };
+      if (data) {
+        setState((prev) => ({ ...prev, room: data as Room }));
+      }
+      return { ok: true };
+    },
+    [roomId, supabase]
+  );
+
+  return { ...state, setVideo, setPlaybackState };
 }
