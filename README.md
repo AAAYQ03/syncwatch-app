@@ -46,7 +46,7 @@ Issues #1–#5 are complete and merged/approved, covering project scaffolding, r
 - YouTube & Bilibili URL paste with auto-fetched title — working
 - Synchronized play/pause/seek across two browser windows — working (~300ms latency)
 
-**Known limitations filed:** See Issue #XX (replace with your tracker issue number) for mobile playback, fullscreen sync, and other considerations.
+**Known limitations filed:** See Issue “Known limitations & considerations (living tracker) #17” for mobile playback, fullscreen sync, and other considerations.
 
 **Remaining work (Issues #6–#8):**
 - Buffering detection & auto-pause
