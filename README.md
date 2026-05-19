@@ -99,7 +99,7 @@ Both are safe to expose in the client bundle. **Never commit `.env.local`** — 
         Production build + deploy to https://510-syncwatch.vercel.app
 ```
 
-**Why the mirror?** Vercel's free Hobby plan can't deploy private repositories belonging to a GitHub organization (this repo is in the `GIX-Luyao` org). The workaround is to keep a public mirror under the developer's personal account and connect Vercel to that. The mirror workflow keeps the two in sync.
+**Why the mirror?** Vercel's free Hobby plan can't deploy private repositories belonging to a GitHub organization (this repo is in the `GIX-Luyao` org). The workaround is to keep a public mirror under the developer's personal account and connect Vercel to that. **This is the deployment pattern explicitly recommended by the course instructor** ("add a public personal repo as a remote and use it for deployment; use GitHub Classroom for submission") — the mirror workflow keeps the two in sync.
 
 **To enable the auto-mirror**, the repo admin must add a `DEPLOY_MIRROR_TOKEN` secret (a GitHub personal access token with `Contents: write` on `AAAYQ03/syncwatch-app`). See the workflow file for details. Until that secret is configured, the developer mirrors manually with:
 
