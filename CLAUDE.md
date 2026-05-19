@@ -57,5 +57,5 @@ tests/          # Vitest specs
 ## Don'ts
 - Don't introduce a separate Express/Socket.IO server — Supabase Realtime is the real-time transport.
 - Don't bypass the `RealtimeEvent` union when broadcasting; add a new variant instead.
-- Don't commit `.env.local` (it's in `.gitignore`). Use `.env.local.example` as the template.
+- Don't commit `.env.local` (it's in `.gitignore`). Use `.env.example` as the template.
 - Don't call Supabase directly from server-side code without `getServerSupabase()` (keeps the client contract consistent and lets us swap key handling later).

@@ -1,0 +1,48 @@
+# Mirror main → AAAYQ03/syncwatch-app:main, which Vercel auto-deploys.
+#
+# Why: Vercel's Hobby plan can't deploy private repos that live under a
+# GitHub organization. We work around that by keeping a public mirror
+# under the developer's personal account and pointing Vercel at it.
+#
+# Setup (one-time, requires repo admin):
+#   1. Create a fine-grained Personal Access Token at
+#      https://github.com/settings/personal-access-tokens with:
+#        - Repository access: only AAAYQ03/syncwatch-app
+#        - Permissions: Contents → Read and write
+#   2. In this repo: Settings → Secrets and variables → Actions →
+#      New repository secret. Name: DEPLOY_MIRROR_TOKEN. Value: the token.
+#
+# Until the secret is configured, the job is skipped (no failures, no spam).
+
+name: Mirror to deploy repo
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: mirror-to-deploy
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ vars.DEPLOY_MIRROR_ENABLED != 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to AAAYQ03/syncwatch-app
+        env:
+          TOKEN: ${{ secrets.DEPLOY_MIRROR_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::DEPLOY_MIRROR_TOKEN secret is not set; skipping mirror."
+            echo "See .github/workflows/mirror-to-deploy.yml for setup instructions."
+            exit 0
+          fi
+          git remote add deploy "https://x-access-token:${TOKEN}@github.com/AAAYQ03/syncwatch-app.git"
+          git push --force deploy HEAD:main
+          echo "Mirrored $(git rev-parse --short HEAD) to AAAYQ03/syncwatch-app:main"
