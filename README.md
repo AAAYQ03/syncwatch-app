@@ -10,7 +10,7 @@ Open the link, create a room, share the 6-character code with a friend, and you'
 
 ## What It Does
 
-SyncWatch lets you create a watch room, paste a video link, and enjoy synchronized playback with anyone who joins. Play, pause, and seek are mirrored in real time across all participants. Your watch history is saved so you can pick up right where you left off.
+SyncWatch lets you create a watch room, paste a video link, and enjoy synchronized playback with anyone who joins. Play, pause, and seek are mirrored in real time across all participants, and reactions float over the video so the whole room can feel the moment.
 
 ## Core Features
 
@@ -19,9 +19,8 @@ SyncWatch lets you create a watch room, paste a video link, and enjoy synchroniz
 - **Ready check & countdown** — Everyone hits "Ready", then a 3-2-1 countdown auto-starts playback.
 - **Auto-fetch video title** — Paste a YouTube or Bilibili URL; the title appears automatically.
 - **Real-time sync** — All playback controls are mirrored to every participant within ≤500 ms.
-- **Buffering detection** *(in progress)* — If anyone is loading, playback pauses for all with a "Waiting for [avatar]..." notice.
-- **Floating emoji reactions** *(in progress)* — Send reactions that float up over the video, visible to everyone.
-- **Watch history & resume** *(in progress)* — Browse past sessions and continue from your last position.
+- **Buffering auto-pause** — If anyone is loading, playback pauses for all with a "Waiting for [avatar]..." overlay; auto-resumes once everyone's caught up.
+- **Floating emoji reactions** — Send reactions that float up over the video, visible to everyone in real time.
 
 ## Team
 
@@ -32,12 +31,12 @@ SyncWatch lets you create a watch room, paste a video link, and enjoy synchroniz
 
 ## Timeline
 
-| Check-in | Date | Expected Progress |
-|----------|------|-------------------|
-| **Check-in 1** | Apr 5, 2026 | Project scaffolding complete; room create/join working; lobby page with real-time avatar grab and ready-check countdown functional. (Issues #1–#3) |
-| **Check-in 2** | Apr 30, 2026 | Video URL auto-fetch working; embedded player with synchronized playback (play/pause/seek) across multiple clients. (Issues #4–#5) |
-| **Check-in 3** | May 15, 2026 | Buffering auto-pause, floating emoji reactions, watch history & resume all implemented. (Issues #6–#7) |
-| **Final Delivery** | May 25, 2026 | UI polish (avatar animations, countdown transitions), responsive design, deployed to public URL. Demo-ready. (Issue #8) |
+| Check-in | Date | Scope | Status |
+|----------|------|-------|--------|
+| **Check-in 1** | Apr 5, 2026 | Project scaffolding; room create/join; lobby with avatar grab & ready-check countdown. (Issues #1–#3) | ✅ Completed — PRs [#12](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/12), [#13](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/13), [#14](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/14), [#24](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/24) merged |
+| **Check-in 2** | Apr 30, 2026 | Video URL auto-fetch; embedded player with synchronized play/pause/seek. (Issues #4–#5) | ✅ Completed — PRs [#15](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/15), [#16](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/16) merged |
+| **Check-in 3** | May 15, 2026 | Buffering auto-pause + floating emoji reactions. (Issue #6) | ✅ Completed — PR [#21](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/21) merged |
+| **Final Delivery** | May 25, 2026 | Deployment polish, automated tests (41 passing), security review, bug fixes (#18, #19). (Issue #8 + checkpoint requirements) | ✅ Completed — PRs [#20](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/20), [#22](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/22), [#23](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/23), [#25](https://github.com/GIX-Luyao/final-project-codebase-yzhou30-ux/pull/25) merged |
 
 ## Tech Stack
 
@@ -46,7 +45,7 @@ SyncWatch lets you create a watch room, paste a video link, and enjoy synchroniz
 - **Player** — YouTube IFrame API + Bilibili iframe embed
 - **Styling** — Tailwind CSS
 - **Hosting** — Vercel (frontend + API routes) + Supabase (DB)
-- **CI** — GitHub Actions (lint + typecheck + test on every push and PR)
+- **CI** — GitHub Actions (lint + typecheck + 41 tests on every push and PR)
 - **Security** — Automated TruffleHog secret scan on every push + PR + weekly cron; see `SECURITY.md` for threat model and the manual review checklist
 
 See `ARCHITECTURE.md` for the C4 diagrams, data model, and design rationale.
@@ -126,14 +125,17 @@ syncwatch/
 │   ├── app/               # Next.js App Router (pages + API routes)
 │   │   ├── api/           # rooms, video-info, members
 │   │   └── room/[id]/     # lobby + watch room
-│   ├── components/        # AvatarGrid, VideoPlayer, VideoUrlInput, ...
-│   ├── hooks/             # useSession, useLobby, useWatchRoom, usePlaybackSync
-│   ├── lib/               # supabase client, room-code, video-url, youtube-api
+│   ├── components/        # AvatarGrid, VideoPlayer, VideoUrlInput,
+│   │                      # BufferingOverlay, EmojiReactionBar, ...
+│   ├── hooks/             # useSession, useLobby, useWatchRoom,
+│   │                      # useRoomMembers, usePlaybackSync
+│   ├── lib/               # supabase client, room-code, video-url,
+│   │                      # youtube-api, lobby-rules, avatars
 │   └── types/             # shared TS types
 ├── supabase/migrations/   # numbered SQL files (0001, 0002, 0003)
-├── tests/                 # Vitest specs
+├── tests/                 # Vitest specs (41 tests across 5 files)
 ├── ARCHITECTURE.md        # C4 + data model + tech stack rationale
-├── SPEC.md                # User stories + acceptance criteria
+├── SECURITY.md            # threat model + secret-scan pipeline
 └── CLAUDE.md              # AI-assistant project context
 ```
 
