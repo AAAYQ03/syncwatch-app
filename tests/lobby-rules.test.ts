@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   canStartCountdown,
   readyBlockReason,
-  MIN_MEMBERS_TO_START
+  isPickInPool,
+  MIN_MEMBERS_TO_START,
+  RELEASED_AVATAR
 } from "@/lib/lobby-rules";
 
 const ready = (n: number) =>
@@ -35,6 +37,26 @@ describe("canStartCountdown — Bug Report #2 regression", () => {
 
   it("returns false when 4 members but one isn't ready", () => {
     expect(canStartCountdown(mixed(3, 1))).toBe(false);
+  });
+});
+
+describe("isPickInPool — Yewen PR #14 review point 3", () => {
+  const pool = ["cat", "dog", "fox", "panda"];
+
+  it("accepts pool members", () => {
+    expect(isPickInPool("cat", pool)).toBe(true);
+    expect(isPickInPool("panda", pool)).toBe(true);
+  });
+
+  it("rejects ids outside the pool", () => {
+    expect(isPickInPool("dragon", pool)).toBe(false);
+    expect(isPickInPool("CAT", pool)).toBe(false); // case-sensitive
+    expect(isPickInPool("", pool)).toBe(false);
+  });
+
+  it("always accepts the released sentinel", () => {
+    expect(isPickInPool(RELEASED_AVATAR, pool)).toBe(true);
+    expect(isPickInPool(RELEASED_AVATAR, [])).toBe(true);
   });
 });
 

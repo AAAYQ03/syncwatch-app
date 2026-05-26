@@ -2,6 +2,20 @@
 // Extracted so it's unit-testable and easy to tune.
 
 export const MIN_MEMBERS_TO_START = 2;
+export const RELEASED_AVATAR = "?";
+
+/**
+ * Validate that the avatar being claimed is in the room's pool. Defense in
+ * depth against a crafted request setting avatar_id outside the configured
+ * set (Yewen PR #14 review point 3). Releasing to "?" is always allowed.
+ */
+export function isPickInPool(
+  avatarId: string,
+  pool: readonly string[]
+): boolean {
+  if (avatarId === RELEASED_AVATAR) return true;
+  return pool.includes(avatarId);
+}
 
 type ReadyLike = { is_ready: boolean };
 

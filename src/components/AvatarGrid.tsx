@@ -27,7 +27,12 @@ export function AvatarGrid({ pool, members, mySessionId, onClaim, disabled }: Pr
           <button
             key={avatarId}
             type="button"
-            onClick={() => !taken && !disabled && onClaim(avatarId)}
+            // Clicking my own avatar releases it (sets back to "?"). This is
+            // the user-visible "switch" mechanic — release then pick another.
+            onClick={() => {
+              if (taken || disabled) return;
+              onClaim(isMine ? "?" : avatarId);
+            }}
             disabled={taken || disabled}
             className={[
               "flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl border text-3xl transition",
@@ -37,11 +42,12 @@ export function AvatarGrid({ pool, members, mySessionId, onClaim, disabled }: Pr
                 ? "cursor-not-allowed border-neutral-800 bg-neutral-900/60 opacity-50"
                 : "border-neutral-700 bg-neutral-900 hover:border-neutral-500 hover:bg-neutral-800"
             ].join(" ")}
-            aria-label={`Claim ${avatarId}`}
+            aria-label={isMine ? `Release ${avatarId}` : `Claim ${avatarId}`}
+            title={isMine ? "Tap to release" : undefined}
           >
             <span className="text-4xl">{avatarEmoji(avatarId)}</span>
             <span className="text-xs font-medium text-neutral-300">
-              {owner ? (isMine ? "You" : "Taken") : avatarId}
+              {owner ? (isMine ? "You (tap to release)" : "Taken") : avatarId}
             </span>
           </button>
         );

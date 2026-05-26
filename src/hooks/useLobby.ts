@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { isPickInPool, RELEASED_AVATAR } from "@/lib/lobby-rules";
 import type { Room, RoomMember } from "@/types";
 
 type LobbyState = {
@@ -184,31 +185,49 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
   const claimAvatar = useCallback(
     async (avatarId: string) => {
       if (!sessionId) return { ok: false, error: "No session" };
-      const { data, error } = await supabase
+
+      // Defense-in-depth: reject pool-foreign ids before hitting the DB.
+      // (Yewen PR #14 review point 3.)
+      if (state.room && !isPickInPool(avatarId, state.room.avatar_pool)) {
+        return { ok: false, error: "Avatar not in this room's pool" };
+      }
+
+      // Yewen PR #14 review point 1: require current avatar to be '?' for a
+      // real claim, so two simultaneous clicks on the same tile race for the
+      // same row-level lock instead of relying solely on the partial unique
+      // index to flag the conflict after the fact. Releasing to '?' is
+      // always allowed (this is also how users "switch" — release then claim).
+      let query = supabase
         .from("room_members")
         .update({ avatar_id: avatarId })
         .eq("room_id", roomId)
-        .eq("session_id", sessionId)
-        .select()
-        .single();
+        .eq("session_id", sessionId);
+      if (avatarId !== RELEASED_AVATAR) {
+        query = query.eq("avatar_id", RELEASED_AVATAR);
+      }
+
+      const { data, error } = await query.select().maybeSingle();
+
       if (error) {
-        // 23505 = partial unique index violation (someone else has it).
         if (error.code === "23505") {
           return { ok: false, error: "Avatar just taken" };
         }
         return { ok: false, error: error.message };
       }
-      // Optimistic local update so we don't wait for realtime round-trip.
-      if (data) {
-        const updated = data as RoomMember;
-        setState((prev) => ({
-          ...prev,
-          members: prev.members.map((m) => (m.id === updated.id ? updated : m))
-        }));
+      if (!data) {
+        return {
+          ok: false,
+          error: "You already hold an avatar — tap yours to release it first"
+        };
       }
+      const updated = data as RoomMember;
+      setState((prev) => ({
+        ...prev,
+        members: prev.members.map((m) => (m.id === updated.id ? updated : m))
+      }));
       return { ok: true };
     },
-    [roomId, sessionId, supabase]
+    [roomId, sessionId, supabase, state.room]
   );
 
   const toggleReady = useCallback(async () => {
