@@ -19,14 +19,16 @@ type Props = {
   videoUrl: string;
   /** Fired the first time the underlying player is ready to take commands. */
   onReady?: (handle: PlayerHandle) => void;
-  /** State changes coming from the player itself (user click or system). */
+  /** Semantic events for sync (only play/pause/seek-end emitted today). */
   onPlayerEvent?: (event: { type: "play" | "pause" | "seek-end" | "buffering" | "playing"; currentTime: number }) => void;
+  /** Fired on every player state change. Use for buffering detection. */
+  onStatusChange?: (status: PlayerStatus, currentTime: number) => void;
 };
 
 const YT_DOM_ID_PREFIX = "yt-player-";
 
 export const VideoPlayer = forwardRef<PlayerHandle, Props>(function VideoPlayer(
-  { videoUrl, onReady, onPlayerEvent },
+  { videoUrl, onReady, onPlayerEvent, onStatusChange },
   ref
 ) {
   const parsed = parseVideoUrl(videoUrl);
@@ -101,6 +103,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, Props>(function VideoPlayer(
             const player = e.target;
             const status = mapState(e.data);
             const currentTime = player.getCurrentTime();
+            onStatusChange?.(status, currentTime);
             if (status === "playing") {
               onPlayerEvent?.({ type: "play", currentTime });
               // Detect a user-initiated seek: if currentTime jumped relative to

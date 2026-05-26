@@ -5,9 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
 import { useWatchRoom } from "@/hooks/useWatchRoom";
+import { useRoomMembers } from "@/hooks/useRoomMembers";
 import { usePlaybackSync, type RemotePlaybackEvent } from "@/hooks/usePlaybackSync";
-import { VideoPlayer, type PlayerHandle } from "@/components/VideoPlayer";
+import { VideoPlayer, type PlayerHandle, type PlayerStatus } from "@/components/VideoPlayer";
 import { VideoUrlInput } from "@/components/VideoUrlInput";
+import { BufferingOverlay } from "@/components/BufferingOverlay";
+import { EmojiReactionBar } from "@/components/EmojiReactionBar";
+import { FloatingEmojiLayer, type FloatingEmoji } from "@/components/FloatingEmojiLayer";
 
 const SEEK_DRIFT_THRESHOLD_S = 0.5;
 const HOST_TICK_INTERVAL_MS = 4000;
@@ -18,18 +22,64 @@ export default function WatchRoomPage() {
   const roomId = params.id;
   const { room, loading, error, setVideo, setPlaybackState } =
     useWatchRoom(roomId);
+  const { byId: memberById } = useRoomMembers(roomId);
 
   const playerRef = useRef<PlayerHandle | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
-  // Suppress local→broadcast loops while applying a remote event.
   const applyingRemoteRef = useRef(false);
+
+  // Track which other members are currently buffering (session_id set).
+  const [bufferingMembers, setBufferingMembers] = useState<Set<string>>(
+    () => new Set()
+  );
+  // Whether *I* have reported myself as buffering.
+  const iAmBufferingRef = useRef(false);
+  // Whether playback was running before we paused for someone's buffer.
+  const wasPlayingBeforeBufferRef = useRef(false);
+
+  // Floating emoji queue.
+  const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
+  const emojiIdRef = useRef(1);
 
   const isHost = Boolean(
     room && sessionId && room.host_session_id === sessionId
   );
 
+  const myAvatar = sessionId
+    ? memberById.get(sessionId)?.avatar_id ?? "?"
+    : "?";
+
+  function pushFloatingEmoji(emoji: string, senderAvatar: string) {
+    setFloatingEmojis((prev) => {
+      // Cap at 30 simultaneous to avoid DOM explosions.
+      const next = prev.length > 30 ? prev.slice(-25) : prev;
+      return [
+        ...next,
+        {
+          id: emojiIdRef.current++,
+          emoji,
+          leftPct: 15 + Math.random() * 70,
+          badge: senderAvatar !== "?" ? undefined : undefined
+        }
+      ];
+    });
+  }
+
   const handleRemoteEvent = useCallback(
     (evt: RemotePlaybackEvent) => {
+      if (evt.type === "emoji") {
+        pushFloatingEmoji(evt.emoji, evt.sender_avatar);
+        return;
+      }
+      if (evt.type === "buffering") {
+        setBufferingMembers((prev) => {
+          const next = new Set(prev);
+          if (evt.is_buffering) next.add(evt.sender);
+          else next.delete(evt.sender);
+          return next;
+        });
+        return;
+      }
       const player = playerRef.current;
       if (!player) return;
       applyingRemoteRef.current = true;
@@ -43,7 +93,6 @@ export default function WatchRoomPage() {
         else if (evt.type === "pause") player.pause();
         else if (evt.type === "seek") player.seek(evt.current_time);
       } finally {
-        // Player events fire async after these calls; clear shortly.
         setTimeout(() => {
           applyingRemoteRef.current = false;
         }, 250);
@@ -52,13 +101,36 @@ export default function WatchRoomPage() {
     []
   );
 
-  const { broadcast } = usePlaybackSync({
+  const { broadcast, broadcastBuffering, broadcastEmoji } = usePlaybackSync({
     roomId,
     sessionId,
     onRemoteEvent: handleRemoteEvent
   });
 
-  // Local player events → broadcast + (host only) persist to rooms.playback_state
+  // Coordinate the buffering-induced pause/resume across all clients.
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    const anyoneBuffering = bufferingMembers.size > 0;
+    if (anyoneBuffering) {
+      if (player.getStatus() === "playing") {
+        wasPlayingBeforeBufferRef.current = true;
+      }
+      applyingRemoteRef.current = true;
+      player.pause();
+      setTimeout(() => {
+        applyingRemoteRef.current = false;
+      }, 250);
+    } else if (wasPlayingBeforeBufferRef.current) {
+      wasPlayingBeforeBufferRef.current = false;
+      applyingRemoteRef.current = true;
+      player.play();
+      setTimeout(() => {
+        applyingRemoteRef.current = false;
+      }, 250);
+    }
+  }, [bufferingMembers]);
+
   const handlePlayerEvent = useCallback(
     (event: {
       type: "play" | "pause" | "seek-end" | "buffering" | "playing";
@@ -82,7 +154,23 @@ export default function WatchRoomPage() {
     [broadcast, isHost, setPlaybackState]
   );
 
-  // Seed late joiners from rooms.playback_state when player becomes ready.
+  // Detect *my* buffering transitions and broadcast them.
+  const handleStatusChange = useCallback(
+    (status: PlayerStatus, _currentTime: number) => {
+      if (status === "buffering") {
+        if (!iAmBufferingRef.current) {
+          iAmBufferingRef.current = true;
+          broadcastBuffering(true);
+        }
+      } else if (iAmBufferingRef.current) {
+        iAmBufferingRef.current = false;
+        broadcastBuffering(false);
+      }
+    },
+    [broadcastBuffering]
+  );
+
+  // Late-joiner seeding from rooms.playback_state.
   const seededRef = useRef(false);
   useEffect(() => {
     if (!playerReady || seededRef.current || !room?.playback_state) return;
@@ -91,8 +179,6 @@ export default function WatchRoomPage() {
     seededRef.current = true;
     const { playing, current_time, updated_at } = room.playback_state;
     let target = current_time;
-    // If host marked it playing, advance by elapsed wall time so we land near
-    // the live position rather than where the host last paused/checkpointed.
     if (playing && updated_at) {
       const elapsedMs = Date.now() - new Date(updated_at).getTime();
       if (elapsedMs > 0 && elapsedMs < 6 * 60 * 60 * 1000) {
@@ -110,7 +196,7 @@ export default function WatchRoomPage() {
     }
   }, [playerReady, room?.playback_state]);
 
-  // Host periodically writes its current position so late joiners stay close.
+  // Host periodically writes its current position.
   useEffect(() => {
     if (!isHost || !playerReady) return;
     const id = setInterval(() => {
@@ -125,6 +211,23 @@ export default function WatchRoomPage() {
     }, HOST_TICK_INTERVAL_MS);
     return () => clearInterval(id);
   }, [isHost, playerReady, setPlaybackState]);
+
+  // Local emoji send: broadcast + immediate self-feedback.
+  const handleEmojiPick = useCallback(
+    (emoji: string) => {
+      broadcastEmoji(emoji, myAvatar);
+      pushFloatingEmoji(emoji, myAvatar);
+    },
+    [broadcastEmoji, myAvatar]
+  );
+
+  const removeFloatingEmoji = useCallback((id: number) => {
+    setFloatingEmojis((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  // Buffering overlay needs avatar_ids for the people currently buffering.
+  const bufferingAvatars = Array.from(bufferingMembers)
+    .map((sid) => memberById.get(sid)?.avatar_id ?? "?");
 
   if (loading) {
     return (
@@ -172,18 +275,30 @@ export default function WatchRoomPage() {
       </header>
 
       {room.video_url ? (
-        <VideoPlayer
-          videoUrl={room.video_url}
-          onReady={(handle) => {
-            playerRef.current = handle;
-            setPlayerReady(true);
-          }}
-          onPlayerEvent={handlePlayerEvent}
-        />
+        <div className="relative">
+          <VideoPlayer
+            videoUrl={room.video_url}
+            onReady={(handle) => {
+              playerRef.current = handle;
+              setPlayerReady(true);
+            }}
+            onPlayerEvent={handlePlayerEvent}
+            onStatusChange={handleStatusChange}
+          />
+          <FloatingEmojiLayer
+            emojis={floatingEmojis}
+            onExpire={removeFloatingEmoji}
+          />
+          <BufferingOverlay bufferingAvatars={bufferingAvatars} />
+        </div>
       ) : (
         <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/60 text-center text-sm text-neutral-500">
           No video set yet. Paste a URL below to get started.
         </div>
+      )}
+
+      {room.video_url && (
+        <EmojiReactionBar onPick={handleEmojiPick} disabled={!sessionId} />
       )}
 
       <VideoUrlInput onSetVideo={setVideo} currentUrl={room.video_url} />
