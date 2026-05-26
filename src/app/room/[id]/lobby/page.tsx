@@ -7,6 +7,7 @@ import { useLobby } from "@/hooks/useLobby";
 import { AvatarGrid } from "@/components/AvatarGrid";
 import { ReadyPanel } from "@/components/ReadyPanel";
 import { CountdownOverlay } from "@/components/CountdownOverlay";
+import { canStartCountdown, readyBlockReason } from "@/lib/lobby-rules";
 
 const COUNTDOWN_SECONDS = 3;
 
@@ -63,9 +64,10 @@ export default function LobbyPage() {
     if (!res.ok && res.error) setClaimError(res.error);
   }, [lobby]);
 
-  // Countdown: start when all members are ready and there is at least 1 member.
-  const allReady =
-    lobby.members.length >= 1 && lobby.members.every((m) => m.is_ready);
+  // Countdown only starts when the room is genuinely multiplayer AND every
+  // member has clicked Ready. See lib/lobby-rules + Bug Report #2.
+  const allReady = canStartCountdown(lobby.members);
+  const waitingMessage = readyBlockReason(lobby.members);
   const [countdown, setCountdown] = useState<number | null>(null);
   const navigatedRef = useRef(false);
 
@@ -153,6 +155,12 @@ export default function LobbyPage() {
         onToggleReady={handleToggleReady}
         disabled={countdown !== null}
       />
+
+      {waitingMessage && (
+        <p className="text-center text-sm text-neutral-400">
+          {waitingMessage}
+        </p>
+      )}
 
       {countdown !== null && <CountdownOverlay seconds={countdown} />}
     </main>

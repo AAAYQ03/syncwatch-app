@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase";
 import type { Room, RoomMember } from "@/types";
@@ -18,6 +18,15 @@ type UseLobbyReturn = LobbyState & {
   toggleReady: () => Promise<{ ok: boolean; error?: string }>;
 };
 
+/**
+ * How long to wait after a presence "leave" before releasing the member's
+ * avatar. Gives a window for quick reconnect (page refresh, brief network
+ * blip) before someone else can grab the avatar. See Bug Report #1 (#18).
+ */
+const PRESENCE_CLEANUP_DELAY_MS = 3000;
+
+type PresenceMeta = { session_id: string };
+
 export function useLobby(roomId: string, sessionId: string | null): UseLobbyReturn {
   const [state, setState] = useState<LobbyState>({
     room: null,
@@ -28,11 +37,20 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
 
   const supabase = useMemo(() => getBrowserSupabase(), []);
 
+  // Pending cleanup timers, keyed by the leaver's session_id, so a fast
+  // reconnect can cancel the release.
+  const cleanupTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+
   // Initial fetch + realtime subscriptions.
   useEffect(() => {
     if (!roomId) return;
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
+    // Capture the Map at effect setup so the cleanup function references
+    // the same instance regardless of any future ref reassignment.
+    const cleanupTimers = cleanupTimersRef.current;
 
     async function load() {
       const [roomRes, membersRes] = await Promise.all([
@@ -62,8 +80,38 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
         error: null
       });
 
+      const scheduleCleanup = (sid: string) => {
+        // Don't clean up ourselves (we're obviously still here).
+        if (sessionId && sid === sessionId) return;
+        const existing = cleanupTimers.get(sid);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(async () => {
+          cleanupTimers.delete(sid);
+          await supabase
+            .from("room_members")
+            .update({
+              avatar_id: "?",
+              is_ready: false,
+              is_buffering: false
+            })
+            .eq("room_id", roomId)
+            .eq("session_id", sid);
+        }, PRESENCE_CLEANUP_DELAY_MS);
+        cleanupTimers.set(sid, timer);
+      };
+
+      const cancelCleanup = (sid: string) => {
+        const t = cleanupTimers.get(sid);
+        if (t) {
+          clearTimeout(t);
+          cleanupTimers.delete(sid);
+        }
+      };
+
       channel = supabase
-        .channel(`room:${roomId}`)
+        .channel(`room:${roomId}`, {
+          config: { presence: { key: sessionId ?? "anon" } }
+        })
         .on(
           "postgres_changes",
           {
@@ -101,16 +149,32 @@ export function useLobby(roomId: string, sessionId: string | null): UseLobbyRetu
             setState((prev) => ({ ...prev, room: payload.new as Room }));
           }
         )
-        .subscribe();
+        .on("presence", { event: "join" }, ({ newPresences }) => {
+          for (const p of newPresences as unknown as PresenceMeta[]) {
+            if (p?.session_id) cancelCleanup(p.session_id);
+          }
+        })
+        .on("presence", { event: "leave" }, ({ leftPresences }) => {
+          for (const p of leftPresences as unknown as PresenceMeta[]) {
+            if (p?.session_id) scheduleCleanup(p.session_id);
+          }
+        })
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED" && channel && sessionId) {
+            await channel.track({ session_id: sessionId });
+          }
+        });
     }
 
     load();
 
     return () => {
       cancelled = true;
+      for (const t of cleanupTimers.values()) clearTimeout(t);
+      cleanupTimers.clear();
       if (channel) supabase.removeChannel(channel);
     };
-  }, [roomId, supabase]);
+  }, [roomId, sessionId, supabase]);
 
   const myMember = useMemo(() => {
     if (!sessionId) return null;

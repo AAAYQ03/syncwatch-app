@@ -49,13 +49,20 @@ export async function POST(
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
+  // On (re)join, always reset is_ready and is_buffering so a user reopening
+  // their browser lands back in the lobby instead of triggering a stale
+  // countdown (Bug Report #1 scenario B / Issue #18). We deliberately keep
+  // avatar_id so refresh doesn't lose the picked avatar; presence-based
+  // cleanup releases avatars of users who fully disconnect (scenario A).
   const { data, error } = await supabase
     .from("room_members")
     .upsert(
       {
         room_id: roomId,
         session_id: parsed.data.session_id,
-        display_name: parsed.data.display_name ?? null
+        display_name: parsed.data.display_name ?? null,
+        is_ready: false,
+        is_buffering: false
       },
       { onConflict: "room_id,session_id" }
     )
