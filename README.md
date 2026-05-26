@@ -47,6 +47,7 @@ SyncWatch lets you create a watch room, paste a video link, and enjoy synchroniz
 - **Styling** — Tailwind CSS
 - **Hosting** — Vercel (frontend + API routes) + Supabase (DB)
 - **CI** — GitHub Actions (lint + typecheck + test on every push and PR)
+- **Security** — Automated TruffleHog secret scan on every push + PR + weekly cron; see `SECURITY.md` for threat model and the manual review checklist
 
 See `ARCHITECTURE.md` for the C4 diagrams, data model, and design rationale.
 

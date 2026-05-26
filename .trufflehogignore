@@ -1,0 +1,14 @@
+# Paths excluded from filesystem scan. Keep this list short and justified.
+
+# Lockfile contains hashes that occasionally trip entropy heuristics.
+pnpm-lock.yaml
+
+# Local-only env file (gitignored anyway, but listed for belt-and-suspenders).
+.env
+.env.local
+.env*.local
+
+# Build output.
+.next/
+.vercel/
+node_modules/
