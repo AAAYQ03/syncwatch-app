@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+@keyframes floatUp {
+  0% {
+    transform: translate(-50%, 20%) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0%) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(calc(-50% + 12px), -260%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% - 6px), -340%) scale(0.9);
+  }
+}
+

@@ -1,6 +1,8 @@
 export type PlaybackState = {
   playing: boolean;
   current_time: number;
+  updated_at?: string;
+
 };
 
 export type Room = {

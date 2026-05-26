@@ -1,0 +1,52 @@
+# Automated secret-leak scan.
+#
+# Uses TruffleHog OSS with --only-verified, which means a finding has been
+# checked against the live provider and confirmed active. False positives
+# from random base64 strings or example keys do NOT fail the build.
+#
+# Companion to SECURITY.md.
+
+name: Security scan
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly Monday 06:00 UTC — catches secrets that slipped past PR review
+    # (e.g., via direct push to a feature branch) and re-checks for newly
+    # rotated/exposed credentials.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  trufflehog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install TruffleHog
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Scan filesystem for verified secrets
+        run: |
+          trufflehog filesystem . \
+            --no-update \
+            --fail \
+            --only-verified \
+            --exclude-paths .trufflehogignore \
+            || (echo "::error::TruffleHog found verified secrets in tracked files. See output above and SECURITY.md for remediation." && exit 1)
+
+      - name: Scan git history for verified secrets
+        run: |
+          trufflehog git file://. \
+            --no-update \
+            --fail \
+            --only-verified \
+            || (echo "::error::TruffleHog found verified secrets in git history. Rotate the key, then rewrite history (git filter-repo / BFG)." && exit 1)
