@@ -15,6 +15,14 @@ import { FloatingEmojiLayer, type FloatingEmoji } from "@/components/FloatingEmo
 
 const SEEK_DRIFT_THRESHOLD_S = 0.5;
 const HOST_TICK_INTERVAL_MS = 4000;
+// Bug #27: don't report buffering until the player has been continuously
+// buffering for ≥1.5s. Filters out brief BUFFERING blips that fire during
+// the pause/resume transition itself, which previously caused a global
+// pause→resume ping-pong loop between users.
+const BUFFER_REPORT_DELAY_MS = 1500;
+// After a global resume, ignore *any* buffering signal for 3s. Gives every
+// client a stable window to settle before re-engaging the detector.
+const BUFFER_RESUME_COOLDOWN_MS = 3000;
 
 export default function WatchRoomPage() {
   const params = useParams<{ id: string }>();
@@ -36,6 +44,13 @@ export default function WatchRoomPage() {
   const iAmBufferingRef = useRef(false);
   // Whether playback was running before we paused for someone's buffer.
   const wasPlayingBeforeBufferRef = useRef(false);
+  // Pending "broadcast buffering=true after debounce" timer.
+  const bufferReportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Time in ms (Date.now() comparable) before which buffering signals are
+  // ignored. Set by the global-resume path to give players time to settle.
+  const bufferCooldownUntilRef = useRef(0);
 
   // Floating emoji queue.
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
@@ -123,6 +138,10 @@ export default function WatchRoomPage() {
       }, 250);
     } else if (wasPlayingBeforeBufferRef.current) {
       wasPlayingBeforeBufferRef.current = false;
+      // Bug #27: arm the cooldown so the brief BUFFERING blip emitted by
+      // the player as it resumes doesn't immediately re-trigger us.
+      bufferCooldownUntilRef.current =
+        Date.now() + BUFFER_RESUME_COOLDOWN_MS;
       applyingRemoteRef.current = true;
       player.play();
       setTimeout(() => {
@@ -154,21 +173,51 @@ export default function WatchRoomPage() {
     [broadcast, isHost, setPlaybackState]
   );
 
-  // Detect *my* buffering transitions and broadcast them.
+  // Detect *my* buffering transitions and broadcast them, with debounce +
+  // post-resume cooldown so a transient pause/resume BUFFERING blip doesn't
+  // trigger another global pause (Bug #27).
   const handleStatusChange = useCallback(
     (status: PlayerStatus, _currentTime: number) => {
+      // Cooldown: skip everything in the window right after a global resume.
+      if (Date.now() < bufferCooldownUntilRef.current) return;
+
       if (status === "buffering") {
-        if (!iAmBufferingRef.current) {
+        if (iAmBufferingRef.current) return; // already reported
+        if (bufferReportTimerRef.current) return; // already pending
+        bufferReportTimerRef.current = setTimeout(() => {
+          bufferReportTimerRef.current = null;
+          // Re-check the cooldown — it may have armed during the delay.
+          if (Date.now() < bufferCooldownUntilRef.current) return;
           iAmBufferingRef.current = true;
           broadcastBuffering(true);
-        }
-      } else if (iAmBufferingRef.current) {
+        }, BUFFER_REPORT_DELAY_MS);
+        return;
+      }
+
+      // Status moved away from buffering. Cancel any pending report (we
+      // were only buffering for a moment) and tell others if we'd
+      // already reported.
+      if (bufferReportTimerRef.current) {
+        clearTimeout(bufferReportTimerRef.current);
+        bufferReportTimerRef.current = null;
+      }
+      if (iAmBufferingRef.current) {
         iAmBufferingRef.current = false;
         broadcastBuffering(false);
       }
     },
     [broadcastBuffering]
   );
+
+  // Clear pending buffer timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (bufferReportTimerRef.current) {
+        clearTimeout(bufferReportTimerRef.current);
+        bufferReportTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Late-joiner seeding from rooms.playback_state.
   const seededRef = useRef(false);
